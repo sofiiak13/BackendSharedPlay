@@ -1,5 +1,6 @@
 .env
 serviceAccountKey.json
-__pycache__/*
-path/*
+__pycache__*
+path*
 .gitignore
+venv*

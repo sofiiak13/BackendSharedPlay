@@ -1,6 +1,10 @@
 from fastapi import FastAPI, HTTPException, Body
 import firebase_admin
 from firebase_admin import credentials, db
+from dotenv import load_dotenv
+import os
+from googleapiclient.discovery import build
+from urllib.parse import urlparse, parse_qs
 
 from Entities import User, Playlist, Song, Comment, Reaction
 
@@ -9,6 +13,12 @@ cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred, {
     "databaseURL": "https://sharedplay-5eb60-default-rtdb.firebaseio.com"
 })
+
+# Initialize YouTube Data API
+load_dotenv()
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+
+youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
 app = FastAPI()
 
@@ -81,3 +91,50 @@ def get_playlist(user_id: str, playlist_id: str):
 
     data["id"] = playlist_id
     return Playlist(**data)
+
+
+def get_yt_data(url: str):
+    video_id = extract_video_id(url)
+    if not video_id:
+        return {"error": "Invalid YouTube URL"}
+
+    request = youtube.videos().list(
+        part="snippet,contentDetails,statistics",
+        id=video_id
+    )
+    response = request.execute()
+    
+    if not response["items"]:
+        return {"error": "Video not found"}
+    else:
+        print(response)
+
+    item = response["items"][0]
+    video_info = {
+        "video_id": video_id,
+        "title": item["snippet"]["title"],
+        "channel": item["snippet"]["channelTitle"],
+        "thumbnail": item["snippet"]["thumbnails"]["default"]["url"],
+        "duration": item["contentDetails"]["duration"],
+        "views": item["statistics"].get("viewCount")
+    }
+    return video_info
+
+
+def extract_video_id(url: str) -> str | None:
+    """
+    Extracts the video ID from a YouTube URL.
+    Returns None if the URL is invalid.
+    """
+    parsed_url = urlparse(url)
+
+    # Standard YouTube or YouTube Music
+    if parsed_url.hostname in ["www.youtube.com", "youtube.com", "music.youtube.com"]:
+        query = parse_qs(parsed_url.query)
+        return query.get("v", [None])[0]
+
+    # Shortened URL
+    elif parsed_url.hostname == "youtu.be":
+        return parsed_url.path.lstrip("/")
+
+    return None
