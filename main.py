@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Body
 import firebase_admin
+import json
 from firebase_admin import credentials, db
 from dotenv import load_dotenv
 import os
@@ -8,14 +9,24 @@ from urllib.parse import urlparse, parse_qs
 
 from Entities import User, Playlist, Song, Comment, Reaction
 
+load_dotenv()
+
 # Initialize Firebase
-cred = credentials.Certificate("serviceAccountKey.json")
+firebase_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+
+if firebase_json:
+    # Running on Railway or with env var
+    service_account_info = json.loads(firebase_json)
+    cred = credentials.Certificate(service_account_info)
+else:
+    # Running locally
+    cred = credentials.Certificate("serviceAccountKey.json")
+
 firebase_admin.initialize_app(cred, {
     "databaseURL": "https://sharedplay-5eb60-default-rtdb.firebaseio.com"
 })
 
 # Initialize YouTube Data API
-load_dotenv()
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
