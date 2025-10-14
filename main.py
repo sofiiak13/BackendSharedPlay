@@ -356,3 +356,7 @@ def extract_video_id(url: str) -> str | None:
 
 # add/remove editor
 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+        
