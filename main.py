@@ -83,16 +83,27 @@ def delete_user(user_id: str):
 
 # -------------------- PLAYLIST METHODS --------------------
 @app.post("/playlist/", response_model=Playlist)
-def create_playlist(playlist: Playlist = Body(...)):
+def create_playlist(owner: str, playlist: Playlist = Body(...)):
     ref = db.reference(f"Playlists")
     new_ref = ref.push()
     new_id = new_ref.key
 
     playlist_dict = playlist.model_dump()
     playlist_dict["id"] = new_id
+    playlist_dict["owner"] = owner
+    playlist_dict["editors"] = [owner]
 
     new_ref.set(playlist_dict)
+    initialize_pl_to_song(new_id)
+    
     return playlist_dict
+
+# TODO: the same for us_to_pl
+
+def initialize_pl_to_song(playlist_id: str):
+    ref = db.reference(f"PlaylistToSongs/{playlist_id}")
+    ref.set({})
+    return 
 
 @app.get("/playlist/{playlist_id}", response_model=Playlist)
 def get_playlist(playlist_id: str):
@@ -109,6 +120,10 @@ def patch_playlist(playlist_id: str, update: Playlist = Body(...)):
     update_dict["id"] = playlist_id
     ref = db.reference(f"Playlists/{playlist_id}")
     existing = ref.get()
+
+    if update_dict["editors"]:
+        existing["editors"] = list(set(existing["editors"] + update_dict["editors"]))
+
     if not existing:
         raise HTTPException(status_code=404, detail="Playlist not found")
     ref.update({k: v for k, v in update_dict.items() if v is not None})
@@ -128,7 +143,32 @@ def delete_playlist(playlist_id: str):
 
 # -------------------- SONG METHODS --------------------
 @app.post("/song/", response_model=Song)
-def create_song(song: Song = Body(...)):
+def create_song(url: str, playlist_id: str, user_id: str):
+    '''
+    Inserts new song into playlist using information extracted from url.
+    
+    url: string, YouTube link to the song
+    playlist_id: str, id of the playlist we want to insert to
+    user_id: str, id of the user who added this song
+    '''
+    data = get_yt_data(url)
+
+    new_song = Song(id=data["id"],
+                    title=data["title"],
+                    artist=data["channel"],
+                    added_by=user_id,
+                    link=url, 
+                    playlist_id=playlist_id)
+
+    add_song(new_song)
+    pl_to_song(playlist_id, data["id"])
+
+def pl_to_song(playlist_id: str, song_id: str):
+    ref = db.reference(f"PlaylistToSongs/{playlist_id}")
+    ref.update({song_id: True})
+    return
+
+def add_song(song: Song = Body(...)):
     song_dict = song.model_dump()
     song_id = song_dict.get("id")  
 
@@ -310,24 +350,6 @@ def extract_video_id(url: str) -> str | None:
     return None
 
 
-def insert_song(url: str, playlist_id: str, user_id: str):
-    '''
-    Inserts new song into playlist using information extracted from url.
-    
-    url: string, YouTube link to the song
-    playlist_id: str, id of the playlist we want to insert to
-    user_id: str, id of the user who added this song
-    '''
-    data = get_yt_data(url)
-
-    new_song = Song(id=data["id"],
-                    title=data["title"],
-                    artist=data["channel"],
-                    added_by=user_id,
-                    link=url, 
-                    playlist_id=playlist_id)
-
-    create_song(new_song)
 
 
 # add/remove friend
