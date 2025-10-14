@@ -18,7 +18,7 @@ class Playlist(BaseModel):
     editors: List[str] = []             # maybe unneccesary if have same rights as editors
 
 class Song(BaseModel):
-    id: Optional[str] = None
+    id: Optional[str] = None        # getting from yt
     title: Optional[str] = None
     artist: Optional[str] = None
     added_by: Optional[str] = None
