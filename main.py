@@ -22,7 +22,8 @@ youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
 app = FastAPI()
 
-# USER METHODS
+
+# -------------------- USER METHODS --------------------
 @app.post("/user/", response_model=User)
 def create_user(user: User = Body(...)):
     ref = db.reference("Users")
@@ -52,7 +53,7 @@ def get_user(user_id: str):
 
 @app.patch("/user/{user_id}", response_model=User)
 def patch_user(user_id: str, update: User = Body(...)):
-    # in case user_id is missing in body
+    # to avoid updating the id
     update["id"] = user_id
     ref = db.reference(f"Users/{user_id}")
     existing = ref.get()
@@ -80,19 +81,188 @@ def delete_user(user_id: str):
     return {"message": f"User {user_id} deleted successfully"}
 
 
-# PLAYLIST METHODS
-@app.get("/playlist/{user_id}/{playlist_id}", response_model=Playlist)
-def get_playlist(user_id: str, playlist_id: str):
-    ref = db.reference(f"Users/{user_id}/playlists/{playlist_id}")
-    data = ref.get()
+# -------------------- PLAYLIST METHODS --------------------
+@app.post("/playlist/", response_model=Playlist)
+def create_playlist(playlist: Playlist = Body(...)):
+    ref = db.reference(f"Playlists")
+    new_ref = ref.push()
+    new_id = new_ref.key
 
+    playlist_dict = playlist.model_dump()
+    playlist_dict["id"] = new_id
+
+    new_ref.set(playlist_dict)
+    return playlist_dict
+
+@app.get("/playlist/{playlist_id}", response_model=Playlist)
+def get_playlist(playlist_id: str):
+    ref = db.reference(f"Playlists/{playlist_id}")
+    data = ref.get()
     if not data:
         raise HTTPException(status_code=404, detail="Playlist not found")
-
     data["id"] = playlist_id
     return Playlist(**data)
 
+@app.patch("/playlist/{playlist_id}", response_model=Playlist)
+def patch_playlist(playlist_id: str, update: Playlist = Body(...)):
+    update_dict = update.model_dump()
+    update_dict["id"] = playlist_id
+    ref = db.reference(f"Playlists/{playlist_id}")
+    existing = ref.get()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    ref.update({k: v for k, v in update_dict.items() if v is not None})
+    
+    updated_data = ref.get()
+    return Playlist(**updated_data)
 
+@app.delete("/playlist/{playlist_id}")
+def delete_playlist(playlist_id: str):
+    ref = db.reference(f"Playlists/{playlist_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    ref.delete()
+    return {"message": f"Playlist {playlist_id} deleted successfully"}
+
+
+# -------------------- SONG METHODS --------------------
+@app.post("/song/", response_model=Song)
+def create_song(song: Song = Body(...)):
+    ref = db.reference(f"Songs")
+    new_ref = ref.push()
+    new_id = new_ref.key
+
+    song_dict = song.model_dump()
+    song_dict["id"] = new_id
+
+    new_ref.set(song_dict)
+    return song_dict
+
+@app.get("/song/{song_id}", response_model=Song)
+def get_song(song_id: str):
+    ref = db.reference(f"Songs/{song_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Song not found")
+    data["id"] = song_id
+    return Song(**data)
+
+@app.patch("/song/{song_id}", response_model=Song)
+def patch_song(song_id: str, update: Song = Body(...)):
+    update_dict = update.model_dump()
+    update_dict["id"] = song_id
+    ref = db.reference(f"Songs/{song_id}")
+    existing = ref.get()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Song not found")
+    ref.update({k: v for k, v in update_dict.items() if v is not None})
+    updated_data = ref.get()
+    return Song(**updated_data)
+
+@app.delete("/song/{song_id}")
+def delete_song(song_id: str):
+    ref = db.reference(f"Songs/{song_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Song not found")
+    ref.delete()
+    return {"message": f"Song {song_id} deleted successfully"}
+
+
+# -------------------- COMMENT METHODS --------------------
+@app.post("/comment/", response_model=Comment)
+def create_comment(comment: Comment = Body(...)):
+    ref = db.reference(f"Comments")
+    new_ref = ref.push()
+    new_id = new_ref.key
+
+    comment_dict = comment.model_dump()
+    comment_dict["id"] = new_id
+
+    new_ref.set(comment_dict)
+    return comment_dict
+
+@app.get("/comment/{comment_id}", response_model=Comment)
+def get_comment(comment_id: str):
+    ref = db.reference(f"Comments/{comment_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    data["id"] = comment_id
+    return Comment(**data)
+
+@app.patch("/comment/{comment_id}", response_model=Comment)
+def patch_comment(comment_id: str, update: Comment = Body(...)):
+    update_dict = update.model_dump()
+    update_dict["id"] = comment_id
+    ref = db.reference(f"Comments/{comment_id}")
+    existing = ref.get()
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    ref.update({k: v for k, v in update_dict.items() if v is not None})
+    
+    updated_data = ref.get()
+    return Comment(**updated_data)
+
+@app.delete("/comment/{comment_id}")
+def delete_comment(comment_id: str):
+    ref = db.reference(f"Comments/{comment_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    ref.delete()
+    return {"message": f"Comment {comment_id} deleted successfully"}
+
+
+# -------------------- REACTION METHODS --------------------
+@app.post("/reaction/", response_model=Reaction)
+def create_reaction(reaction: Reaction = Body(...)):
+    ref = db.reference(f"Reactions")
+    new_ref = ref.push()
+    new_id = new_ref.key
+
+    reaction_dict = reaction.model_dump()
+    reaction_dict["id"] = new_id
+    new_ref.set(reaction_dict)
+    return reaction_dict
+
+@app.get("/reaction/{reaction_id}", response_model=Reaction)
+def get_reaction(reaction_id: str):
+    ref = db.reference(f"Reactions/{reaction_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Reaction not found")
+    data["id"] = reaction_id
+    return Reaction(**data)
+
+@app.patch("/reaction/{reaction_id}", response_model=Reaction)
+def patch_reaction(reaction_id: str, update: Reaction = Body(...)):
+    update_dict = update.model_dump()
+    update_dict["id"] = reaction_id
+    ref = db.reference(f"Reactions/{reaction_id}")
+    existing = ref.get()
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Reaction not found")
+    
+    ref.update({k: v for k, v in update_dict.items() if v is not None})
+    updated_data = ref.get()
+    return Reaction(**updated_data)
+
+@app.delete("/reaction/{reaction_id}")
+def delete_reaction(reaction_id: str):
+    ref = db.reference(f"Reactions/{reaction_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Reaction not found")
+    ref.delete()
+    return {"message": f"Reaction {reaction_id} deleted successfully"}
+
+
+# -------------------- YouTube Data --------------------
 def get_yt_data(url: str):
     video_id = extract_video_id(url)
     if not video_id:
