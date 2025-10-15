@@ -48,8 +48,14 @@ def create_user(user: User = Body(...)):
     user_dict["id"] = new_id
     
     new_ref.set(user_dict)
+
+    initialize_us_to_pl(new_id)
     return user_dict
 
+def initialize_us_to_pl(user_id: str):
+    ref = db.reference(f"UserToPlaylists/{user_id}")
+    ref.set({})
+    return 
 
 @app.get("/user/{user_id}", response_model=User)
 def get_user(user_id: str):
@@ -76,6 +82,14 @@ def patch_user(user_id: str, update: User = Body(...)):
 
     updated_data = ref.get()
     return User(**updated_data)
+
+
+def remove_us_map(user_id: str):
+    ref = db.reference(f"UserToPlaylists/{user_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="User not found in User to Playlist mapping")
+    ref.delete()
 
 
 @app.delete("/user/{user_id}")
@@ -109,7 +123,10 @@ def create_playlist(owner: str, playlist: Playlist = Body(...)):
     
     return playlist_dict
 
-# TODO: the same for us_to_pl
+def us_to_pl(user_id: str, playlist_id: str):
+    ref = db.reference(f"UserToPlaylists/{user_id}")
+    ref.update({playlist_id: True})
+    return
 
 def initialize_pl_to_song(playlist_id: str):
     ref = db.reference(f"PlaylistToSongs/{playlist_id}")
@@ -142,13 +159,32 @@ def patch_playlist(playlist_id: str, update: Playlist = Body(...)):
     updated_data = ref.get()
     return Playlist(**updated_data)
 
+def remove_pl_from(user_id: str, playlist_id: str):
+    ref = db.reference(f"UserToPlaylists/{user_id}/{playlist_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Playlist not found in User to Playlist mapping")
+    ref.delete()
+
+def remove_pl_map(playlist_id: str):
+    ref = db.reference(f"PlaylistToSongs/{playlist_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Playlist not found in Playlist to Song mapping")
+    ref.delete()
+
+
 @app.delete("/playlist/{playlist_id}")
 def delete_playlist(playlist_id: str):
     ref = db.reference(f"Playlists/{playlist_id}")
     data = ref.get()
     if not data:
         raise HTTPException(status_code=404, detail="Playlist not found")
+    
     ref.delete()
+
+    for editor in data["editors"]: remove_pl_from(editor, playlist_id)
+    remove_pl_map(playlist_id)
     return {"message": f"Playlist {playlist_id} deleted successfully"}
 
 
@@ -212,6 +248,13 @@ def patch_song(song_id: str, update: Song = Body(...)):
     updated_data = ref.get()
     return Song(**updated_data)
 
+def remove_song_from(playlist_id: str, song_id: str):
+    ref = db.reference(f"PlaylistToSongs/{playlist_id}/{song_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Song not found in mapping")
+    ref.delete()
+
 @app.delete("/song/{song_id}")
 def delete_song(song_id: str):
     ref = db.reference(f"Songs/{song_id}")
@@ -219,6 +262,7 @@ def delete_song(song_id: str):
     if not data:
         raise HTTPException(status_code=404, detail="Song not found")
     ref.delete()
+    remove_song_from(data["playlist_id"], song_id)
     return {"message": f"Song {song_id} deleted successfully"}
 
 
@@ -366,6 +410,10 @@ def extract_video_id(url: str) -> str | None:
 # add/remove friend
 
 # add/remove editor
+
+# TODO: get all playlists(user)
+# get all songs(playlist)
+
 
 if __name__ == "__main__":
     import uvicorn
