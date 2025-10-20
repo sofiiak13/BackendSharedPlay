@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 from googleapiclient.discovery import build
 from urllib.parse import urlparse, parse_qs
+import datetime
 
 from Entities import User, Playlist, Song, Comment, Reaction
 
@@ -46,16 +47,11 @@ def create_user(user: User = Body(...)):
     # Add the ID into the user object
     user_dict = user.model_dump()   # Pydantic v2
     user_dict["id"] = new_id
-    
-    new_ref.set(user_dict)
+    user_dict["date_joined"] = datetime.datetime.now().isoformat()
 
-    initialize_us_to_pl(new_id)
+    new_ref.set(user_dict)
     return user_dict
 
-def initialize_us_to_pl(user_id: str):
-    ref = db.reference(f"UserToPlaylists/{user_id}")
-    ref.set({})
-    return 
 
 @app.get("/user/{user_id}", response_model=User)
 def get_user(user_id: str):
@@ -105,6 +101,18 @@ def delete_user(user_id: str):
     data = ref.delete()
     return {"message": f"User {user_id} deleted successfully"}
 
+@app.get("/user/{user_id}/playlists")
+def get_all_playlists_from(user_id: str):
+    ref = db.reference(f"UserToPlaylists/{user_id}")
+    data = ref.get()
+    all_playlists = []
+    for playlist_id in data:
+        try: 
+            all_playlists.append(get_playlist(playlist_id))
+        except HTTPException:
+            all_playlists.append({"playlist_id": "Not_found"})
+
+    return all_playlists
 
 # -------------------- PLAYLIST METHODS --------------------
 @app.post("/playlist/", response_model=Playlist)
@@ -117,9 +125,11 @@ def create_playlist(owner: str, playlist: Playlist = Body(...)):
     playlist_dict["id"] = new_id
     playlist_dict["owner"] = owner
     playlist_dict["editors"] = [owner]
+    playlist_dict["date_created"] = datetime.datetime.now().isoformat()
+    playlist_dict["last_updated"] = datetime.datetime.now().isoformat()
 
     new_ref.set(playlist_dict)
-    initialize_pl_to_song(new_id)
+    us_to_pl(owner, new_id)
     
     return playlist_dict
 
@@ -128,10 +138,6 @@ def us_to_pl(user_id: str, playlist_id: str):
     ref.update({playlist_id: True})
     return
 
-def initialize_pl_to_song(playlist_id: str):
-    ref = db.reference(f"PlaylistToSongs/{playlist_id}")
-    ref.set({})
-    return 
 
 @app.get("/playlist/{playlist_id}", response_model=Playlist)
 def get_playlist(playlist_id: str):
@@ -142,10 +148,24 @@ def get_playlist(playlist_id: str):
     data["id"] = playlist_id
     return Playlist(**data)
 
+@app.get("/playlist/{playlist_id}/songs")
+def get_all_songs_from(playlist_id: str):
+    ref = db.reference(f"PlaylistToSongs/{playlist_id}")
+    data = ref.get()
+    all_songs = []
+    for song_id in data:
+        try: 
+            all_songs.append(get_song(song_id))
+        except HTTPException:
+            all_songs.append({"song_id": "Not_found"})
+
+    return all_songs
+
 @app.patch("/playlist/{playlist_id}", response_model=Playlist)
 def patch_playlist(playlist_id: str, update: Playlist = Body(...)):
     update_dict = update.model_dump()
     update_dict["id"] = playlist_id
+    update_dict["last_updated"] = datetime.datetime.now()
     ref = db.reference(f"Playlists/{playlist_id}")
     existing = ref.get()
 
@@ -209,6 +229,7 @@ def create_song(url: str, playlist_id: str, user_id: str):
 
     add_song(new_song)
     pl_to_song(playlist_id, data["id"])
+    return new_song
 
 def pl_to_song(playlist_id: str, song_id: str):
     ref = db.reference(f"PlaylistToSongs/{playlist_id}")
@@ -236,6 +257,7 @@ def get_song(song_id: str):
     data["id"] = song_id
     return Song(**data)
 
+## TODO: do I need this?
 @app.patch("/song/{song_id}", response_model=Song)
 def patch_song(song_id: str, update: Song = Body(...)):
     update_dict = update.model_dump()
@@ -275,6 +297,7 @@ def create_comment(comment: Comment = Body(...)):
 
     comment_dict = comment.model_dump()
     comment_dict["id"] = new_id
+    comment_dict["date"] = datetime.datetime.now().isoformat()
 
     new_ref.set(comment_dict)
     return comment_dict
@@ -292,6 +315,7 @@ def get_comment(comment_id: str):
 def patch_comment(comment_id: str, update: Comment = Body(...)):
     update_dict = update.model_dump()
     update_dict["id"] = comment_id
+    update_dict["date"] = datetime.datetime.now().isoformat()
     ref = db.reference(f"Comments/{comment_id}")
     existing = ref.get()
 
@@ -405,14 +429,11 @@ def extract_video_id(url: str) -> str | None:
     return None
 
 
-
-
 # add/remove friend
 
 # add/remove editor
 
-# TODO: get all playlists(user)
-# get all songs(playlist)
+# TODO add date module to automatically update 
 
 
 if __name__ == "__main__":
