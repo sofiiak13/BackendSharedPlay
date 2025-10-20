@@ -34,6 +34,9 @@ youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
 app = FastAPI()
 
+@app.get("/")
+def home():
+    return {"message": "Welcome to SharedPlay API"}
 
 # -------------------- USER METHODS --------------------
 @app.post("/user/", response_model=User)
