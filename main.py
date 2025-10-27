@@ -9,6 +9,7 @@ from urllib.parse import urlparse, parse_qs
 import datetime
 
 from Entities import User, Playlist, Song, Comment, Reaction
+from Entities import UserUpdate, PlaylistUpdate, CommentUpdate
 
 load_dotenv()
 
@@ -68,16 +69,24 @@ def get_user(user_id: str):
 
 
 @app.patch("/user/{user_id}", response_model=User)
-def patch_user(user_id: str, update: User = Body(...)):
-    # to avoid updating the id
-    update["id"] = user_id
+def patch_user(user_id: str, update: UserUpdate = Body(...)):
+    # Only include fields the client actually sent
+    update_dict = update.model_dump(exclude_unset=True)
+
     ref = db.reference(f"Users/{user_id}")
     existing = ref.get()
     if not existing:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    if "friends" in update_dict and update_dict["friends"]:
+        existing_friends = existing.get("friends", [])
+        new_friends = update_dict["friends"]
+        update_dict["friends"] = list(set(existing_friends + new_friends))
 
-    # Only update fields that are not None
-    ref.update({k: v for k, v in update.model_dump().items() if v is not None})
+    update_dict["id"] = user_id
+
+    # Update only the provided fields
+    ref.update(update_dict)
 
     updated_data = ref.get()
     return User(**updated_data)
@@ -165,22 +174,32 @@ def get_all_songs_from(playlist_id: str):
     return all_songs
 
 @app.patch("/playlist/{playlist_id}", response_model=Playlist)
-def patch_playlist(playlist_id: str, update: Playlist = Body(...)):
-    update_dict = update.model_dump()
-    update_dict["id"] = playlist_id
-    update_dict["last_updated"] = datetime.datetime.now()
+def patch_playlist(playlist_id: str, update: PlaylistUpdate = Body(...)):
+    # Only include fields that the user actually sent
+    update_dict = update.model_dump(exclude_unset=True)
+
     ref = db.reference(f"Playlists/{playlist_id}")
     existing = ref.get()
 
-    if update_dict["editors"]:
-        existing["editors"] = list(set(existing["editors"] + update_dict["editors"]))
-
     if not existing:
         raise HTTPException(status_code=404, detail="Playlist not found")
-    ref.update({k: v for k, v in update_dict.items() if v is not None})
-    
+
+    # Merge editors if provided
+    if "editors" in update_dict and update_dict["editors"]:
+        existing_editors = existing.get("editors", [])
+        new_editors = update_dict["editors"]
+        update_dict["editors"] = list(set(existing_editors + new_editors))
+
+    # Always update id and timestamp server-side
+    update_dict["id"] = playlist_id
+    update_dict["last_updated"] = datetime.datetime.now().isoformat()
+
+    # Update only specified fields
+    ref.update(update_dict)
+
     updated_data = ref.get()
     return Playlist(**updated_data)
+
 
 def remove_pl_from(user_id: str, playlist_id: str):
     ref = db.reference(f"UserToPlaylists/{user_id}/{playlist_id}")
@@ -228,7 +247,10 @@ def create_song(url: str, playlist_id: str, user_id: str):
                     artist=data["channel"],
                     added_by=user_id,
                     link=url, 
-                    playlist_id=playlist_id)
+                    playlist_id=playlist_id,
+                    date_added = datetime.datetime.now().isoformat(),
+                    date_released = "set_later"
+                    )
 
     add_song(new_song)
     pl_to_song(playlist_id, data["id"])
@@ -260,16 +282,17 @@ def get_song(song_id: str):
     data["id"] = song_id
     return Song(**data)
 
-## TODO: do I need this?
+## TODO: chnage to move song to pl?
 @app.patch("/song/{song_id}", response_model=Song)
 def patch_song(song_id: str, update: Song = Body(...)):
-    update_dict = update.model_dump()
+    update_dict = update.model_dump(exclude_unset=True)
     update_dict["id"] = song_id
     ref = db.reference(f"Songs/{song_id}")
     existing = ref.get()
     if not existing:
         raise HTTPException(status_code=404, detail="Song not found")
-    ref.update({k: v for k, v in update_dict.items() if v is not None})
+    
+    ref.update(update_dict)
     updated_data = ref.get()
     return Song(**updated_data)
 
@@ -315,8 +338,8 @@ def get_comment(comment_id: str):
     return Comment(**data)
 
 @app.patch("/comment/{comment_id}", response_model=Comment)
-def patch_comment(comment_id: str, update: Comment = Body(...)):
-    update_dict = update.model_dump()
+def patch_comment(comment_id: str, update: CommentUpdate = Body(...)):
+    update_dict = update.model_dump(excude_unset = True)
     update_dict["id"] = comment_id
     update_dict["date"] = datetime.datetime.now().isoformat()
     ref = db.reference(f"Comments/{comment_id}")
@@ -325,7 +348,7 @@ def patch_comment(comment_id: str, update: Comment = Body(...)):
     if not existing:
         raise HTTPException(status_code=404, detail="Comment not found")
     
-    ref.update({k: v for k, v in update_dict.items() if v is not None})
+    ref.update(update_dict)
     
     updated_data = ref.get()
     return Comment(**updated_data)

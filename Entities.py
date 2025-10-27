@@ -7,7 +7,13 @@ class User(BaseModel):
     name: Optional[str] = None
     password: Optional[str] = None
     date_joined: Optional[str] = None
-    friends: List[str] = []
+    friends: List[str] = None
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    friends: List[str] = None
 
 class Playlist(BaseModel):
     id: Optional[str] = None
@@ -15,7 +21,12 @@ class Playlist(BaseModel):
     date_created: Optional[str] = None
     last_updated: Optional[str] = None
     owner: Optional[str] = None
-    editors: List[str] = []             # maybe unneccesary if have same rights as editors
+    editors: List[str] = None             # maybe unneccesary if have same rights as editors
+
+class PlaylistUpdate(BaseModel):
+    name: Optional[str] = None
+    owner: Optional[str] = None
+    editors: Optional[List[str]] = None
 
 class Song(BaseModel):
     id: Optional[str] = None        # getting from yt
@@ -24,8 +35,8 @@ class Song(BaseModel):
     added_by: Optional[str] = None
     link: Optional[str] = None
     playlist_id: Optional[str] = None
-    ## added on date (for sorting)
-    ## add released date later?
+    date_added: Optional[str] = None
+    date_released: Optional[str] = None
 
 class Comment(BaseModel):
     id: Optional[str] = None
@@ -34,6 +45,10 @@ class Comment(BaseModel):
     date: Optional[str] = None
     prev: Optional[str] = None
     song_id: Optional[str] = None
+
+class CommentUpdate(BaseModel):
+    text: Optional[str] = None
+    date: Optional[str] = None
 
 class Reaction(BaseModel):
     id: Optional[str] = None
