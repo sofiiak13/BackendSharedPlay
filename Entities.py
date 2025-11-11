@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List
 
+# TODO: instead of NOne make params more descriptive
 class User(BaseModel):
     id: Optional[str] = None
     email: Optional[str] = None
@@ -29,7 +30,8 @@ class PlaylistUpdate(BaseModel):
     editors: Optional[List[str]] = None
 
 class Song(BaseModel):
-    id: Optional[str] = None        # getting from yt
+    id: Optional[str] = None        
+    yt_id: Optional[str] = None 
     title: Optional[str] = None
     artist: Optional[str] = None
     added_by: Optional[str] = None

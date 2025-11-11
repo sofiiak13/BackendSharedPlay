@@ -7,6 +7,7 @@ import os
 from googleapiclient.discovery import build
 from urllib.parse import urlparse, parse_qs
 import datetime
+import re
 
 from Entities import User, Playlist, Song, Comment, Reaction
 from Entities import UserUpdate, PlaylistUpdate, CommentUpdate
@@ -148,7 +149,7 @@ def create_playlist(owner: str, playlist: Playlist = Body(...)):
 def us_to_pl(user_id: str, playlist_id: str):
     ref = db.reference(f"UserToPlaylists/{user_id}")
     ref.update({playlist_id: True})
-    return
+    return "Successful mapping User to Playlist."
 
 
 @app.get("/playlist/{playlist_id}", response_model=Playlist)
@@ -202,6 +203,7 @@ def patch_playlist(playlist_id: str, update: PlaylistUpdate = Body(...)):
 
 
 def remove_pl_from(user_id: str, playlist_id: str):
+    '''Removes playlist mapping from UserToPlaylists relationship.'''
     ref = db.reference(f"UserToPlaylists/{user_id}/{playlist_id}")
     data = ref.get()
     if not data:
@@ -209,6 +211,7 @@ def remove_pl_from(user_id: str, playlist_id: str):
     ref.delete()
 
 def remove_pl_map(playlist_id: str):
+    '''Removes playlist mapping from PlaylistToSongs relationship.'''
     ref = db.reference(f"PlaylistToSongs/{playlist_id}")
     data = ref.get()
     if not data:
@@ -240,38 +243,33 @@ def create_song(url: str, playlist_id: str, user_id: str):
     playlist_id: str, id of the playlist we want to insert to
     user_id: str, id of the user who added this song
     '''
+    ref = db.reference(f"Songs")
+    new_ref = ref.push()
+    new_id = new_ref.key
+
     data = get_yt_data(url)
 
-    new_song = Song(id=data["id"],
+    new_song = Song(id=new_id,
+                    yt_id=data["yt_id"],
                     title=data["title"],
                     artist=data["channel"],
                     added_by=user_id,
                     link=url, 
                     playlist_id=playlist_id,
                     date_added = datetime.datetime.now().isoformat(),
-                    date_released = "set_later"
+                    date_released = data["date_released"]
                     )
 
-    add_song(new_song)
-    pl_to_song(playlist_id, data["id"])
-    return new_song
+    song_dict = new_song.model_dump()
+    new_ref.set(song_dict)
+    pl_to_song(playlist_id, new_id)
+
+    return song_dict
 
 def pl_to_song(playlist_id: str, song_id: str):
     ref = db.reference(f"PlaylistToSongs/{playlist_id}")
     ref.update({song_id: True})
     return
-
-def add_song(song: Song = Body(...)):
-    song_dict = song.model_dump()
-    song_id = song_dict.get("id")  
-
-    if not song_id:
-        raise HTTPException(status_code=400, detail="Song 'id' (YouTube ID) is required")
-
-    new_ref = db.reference("Songs").child(song_id)
-    new_ref.set(song_dict)
-
-    return song_dict
 
 @app.get("/song/{song_id}", response_model=Song)
 def get_song(song_id: str):
@@ -282,7 +280,7 @@ def get_song(song_id: str):
     data["id"] = song_id
     return Song(**data)
 
-## TODO: chnage to move song to pl?
+## TODO: chnage to move song to pl? what else can we change?
 @app.patch("/song/{song_id}", response_model=Song)
 def patch_song(song_id: str, update: Song = Body(...)):
     update_dict = update.model_dump(exclude_unset=True)
@@ -316,7 +314,7 @@ def delete_song(song_id: str):
 
 # -------------------- COMMENT METHODS --------------------
 @app.post("/comment/", response_model=Comment)
-def create_comment(comment: Comment = Body(...)):
+def create_comment(song_id: str, comment: Comment = Body(...)):
     ref = db.reference(f"Comments")
     new_ref = ref.push()
     new_id = new_ref.key
@@ -324,9 +322,18 @@ def create_comment(comment: Comment = Body(...)):
     comment_dict = comment.model_dump()
     comment_dict["id"] = new_id
     comment_dict["date"] = datetime.datetime.now().isoformat()
+    comment_dict["song_id"] = song_id
 
     new_ref.set(comment_dict)
+    song_to_comment(song_id, new_id)
     return comment_dict
+
+
+def song_to_comment(song_id: str, comment_id: str):
+    ref = db.reference(f"SongToComments/{song_id}")
+    ref.update({comment_id: True})
+    return "Successful mapping Song to Comment."
+
 
 @app.get("/comment/{comment_id}", response_model=Comment)
 def get_comment(comment_id: str):
@@ -360,12 +367,19 @@ def delete_comment(comment_id: str):
     if not data:
         raise HTTPException(status_code=404, detail="Comment not found")
     ref.delete()
+    remove_comment_map(comment_id)
     return {"message": f"Comment {comment_id} deleted successfully"}
 
+def remove_comment_map(comment_id: str):
+    ref = db.reference(f"SongToComments/{comment_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Comment not found in Song to Comments mapping")
+    ref.delete()
 
 # -------------------- REACTION METHODS --------------------
 @app.post("/reaction/", response_model=Reaction)
-def create_reaction(reaction: Reaction = Body(...)):
+def create_reaction(comment_id: str, reaction: Reaction = Body(...)):
     ref = db.reference(f"Reactions")
     new_ref = ref.push()
     new_id = new_ref.key
@@ -373,7 +387,14 @@ def create_reaction(reaction: Reaction = Body(...)):
     reaction_dict = reaction.model_dump()
     reaction_dict["id"] = new_id
     new_ref.set(reaction_dict)
+    comment_to_reaction(comment_id, new_id)
     return reaction_dict
+
+def comment_to_reaction(comment_id: str, reaction_id: str):
+    ref = db.reference(f"SongToComments/{comment_id}")
+    ref.update({reaction_id: True})
+    return "Successful mapping Comment to Reactions."
+
 
 @app.get("/reaction/{reaction_id}", response_model=Reaction)
 def get_reaction(reaction_id: str):
@@ -398,6 +419,7 @@ def patch_reaction(reaction_id: str, update: Reaction = Body(...)):
     updated_data = ref.get()
     return Reaction(**updated_data)
 
+
 @app.delete("/reaction/{reaction_id}")
 def delete_reaction(reaction_id: str):
     ref = db.reference(f"Reactions/{reaction_id}")
@@ -405,8 +427,16 @@ def delete_reaction(reaction_id: str):
     if not data:
         raise HTTPException(status_code=404, detail="Reaction not found")
     ref.delete()
+    remove_reaction_map(reaction_id)
     return {"message": f"Reaction {reaction_id} deleted successfully"}
 
+
+def remove_reaction_map(reaction_id: str):
+    ref = db.reference(f"CommentToReaction/{reaction_id}")
+    data = ref.get()
+    if not data:
+        raise HTTPException(status_code=404, detail="Reaction not found in Comment to Reactions mapping")
+    ref.delete()
 
 # -------------------- YouTube Data --------------------
 def get_yt_data(url: str):
@@ -426,12 +456,20 @@ def get_yt_data(url: str):
         print(response)
 
     item = response["items"][0]
+
+    channel = item["snippet"]["channelTitle"]
+    match = re.search(r"(.+) - Topic", channel)
+    
+    if match:
+        channel = match.group(1)
+    
     video_info = {
-        "id": video_id,
+        "yt_id": video_id,
         "title": item["snippet"]["title"],
-        "channel": item["snippet"]["channelTitle"],
+        "channel": channel,
         "thumbnail": item["snippet"]["thumbnails"]["default"]["url"],
-        "duration": item["contentDetails"]["duration"]
+        "duration": item["contentDetails"]["duration"],
+        "date_released": item["snippet"]["publishedAt"]
     }
     return video_info
 
