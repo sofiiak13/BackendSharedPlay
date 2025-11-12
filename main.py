@@ -234,7 +234,7 @@ def delete_playlist(playlist_id: str):
 
 
 # -------------------- SONG METHODS --------------------
-@app.post("/song/", response_model=Song)
+@app.get("/song/{playlist_id}/{user_id}", response_model=Song)
 def create_song(url: str, playlist_id: str, user_id: str):
     '''
     Inserts new song into playlist using information extracted from url.
@@ -243,9 +243,12 @@ def create_song(url: str, playlist_id: str, user_id: str):
     playlist_id: str, id of the playlist we want to insert to
     user_id: str, id of the user who added this song
     '''
+    print(url, playlist_id, user_id)
     ref = db.reference(f"Songs")
     new_ref = ref.push()
     new_id = new_ref.key
+    
+    print("New id", new_id)
 
     data = get_yt_data(url)
 
@@ -265,6 +268,39 @@ def create_song(url: str, playlist_id: str, user_id: str):
     pl_to_song(playlist_id, new_id)
 
     return song_dict
+
+
+# @app.post("/song/", response_model=Song)
+# def create_song(url: str, playlist_id: str, user_id: str):
+#     '''
+#     Inserts new song into playlist using information extracted from url.
+    
+#     url: string, YouTube link to the song
+#     playlist_id: str, id of the playlist we want to insert to
+#     user_id: str, id of the user who added this song
+#     '''
+#     ref = db.reference(f"Songs")
+#     new_ref = ref.push()
+#     new_id = new_ref.key
+
+#     data = get_yt_data(url)
+
+#     new_song = Song(id=new_id,
+#                     yt_id=data["yt_id"],
+#                     title=data["title"],
+#                     artist=data["channel"],
+#                     added_by=user_id,
+#                     link=url, 
+#                     playlist_id=playlist_id,
+#                     date_added = datetime.datetime.now().isoformat(),
+#                     date_released = data["date_released"]
+#                     )
+
+#     song_dict = new_song.model_dump()
+#     new_ref.set(song_dict)
+#     pl_to_song(playlist_id, new_id)
+
+#     return song_dict
 
 def pl_to_song(playlist_id: str, song_id: str):
     ref = db.reference(f"PlaylistToSongs/{playlist_id}")
@@ -496,8 +532,6 @@ def extract_video_id(url: str) -> str | None:
 # add/remove friend
 
 # add/remove editor
-
-# TODO add date module to automatically update 
 
 
 if __name__ == "__main__":
