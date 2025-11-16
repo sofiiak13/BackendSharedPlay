@@ -9,7 +9,7 @@ router = APIRouter(
 
 
 # -------------------- REACTION METHODS --------------------
-@router.post("/", response_model=Reaction)
+@router.post("", response_model=Reaction)
 def create_reaction(comment_id: str, reaction: Reaction = Body(...)):
     ref = db.reference(f"Reactions")
     new_ref = ref.push()
