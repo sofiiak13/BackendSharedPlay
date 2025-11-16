@@ -11,14 +11,14 @@ router = APIRouter(
 
 # -------------------- PLAYLIST METHODS --------------------
 @router.post("", response_model=Playlist)
-def create_playlist(owner: str, playlist: Playlist = Body(...)):
+def create_playlist(playlist: Playlist = Body(...)):
     ref = db.reference(f"Playlists")
     new_ref = ref.push()
     new_id = new_ref.key
 
     playlist_dict = playlist.model_dump()
     playlist_dict["id"] = new_id
-    playlist_dict["owner"] = owner
+    owner = playlist_dict["owner"]
     playlist_dict["editors"] = [owner]
     playlist_dict["date_created"] = datetime.datetime.now().isoformat()
     playlist_dict["last_updated"] = datetime.datetime.now().isoformat()

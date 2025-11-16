@@ -2,15 +2,12 @@ from pydantic import BaseModel
 from typing import Optional
 
 class Comment(BaseModel):
-    id: Optional[str] = None
-    text: Optional[str] = None
-    author: Optional[str] = None
-    date_created: Optional[str] = None
+    id: Optional[str]                   #id is optional because it's being set on backend upon creation
+    text: str
+    author: str
+    date_created: Optional[str]
     prev: Optional[str] = None
-    song_id: Optional[str] = None
-    edited: bool = False
+    song_id: str
+    edited: Optional[bool] = False
     depth: Optional[int] = None
     
-class CommentUpdate(BaseModel):
-    text: Optional[str] 
-    edited: bool 

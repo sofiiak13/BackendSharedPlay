@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Body, HTTPException
-from Modules import Comment, CommentUpdate
+from fastapi import APIRouter, Body, Query, HTTPException
+from Modules import Comment
 from firebase_admin import db
 
 import datetime
@@ -11,7 +11,7 @@ router = APIRouter(
 
 # -------------------- COMMENT METHODS --------------------
 @router.post("", response_model=Comment)
-def create_comment(song_id: str, comment: Comment = Body(...)):
+def create_comment(comment: Comment = Body(...)):
     ref = db.reference(f"Comments")
     new_ref = ref.push()
     new_id = new_ref.key
@@ -19,10 +19,9 @@ def create_comment(song_id: str, comment: Comment = Body(...)):
     comment_dict = comment.model_dump()
     comment_dict["id"] = new_id
     comment_dict["date_created"] = datetime.datetime.now().isoformat()
-    comment_dict["song_id"] = song_id
 
     new_ref.set(comment_dict)
-    song_to_comment(song_id, new_id)
+    song_to_comment(comment_dict["song_id"], new_id)
     return comment_dict
 
 
@@ -42,17 +41,20 @@ def get_comment(comment_id: str):
     return Comment(**data)
 
 @router.patch("/{comment_id}", response_model=Comment)
-def patch_comment(comment_id: str, update: CommentUpdate = Body(...)):
-    update_dict = update.model_dump(exclude_unset = True)
-    update_dict["id"] = comment_id
-    update_dict["edited"] = True
+def update_comment(
+    comment_id: str = Query(...), 
+    updated_text: str = Body(...)
+    ):
+    com_dict = get_comment(comment_id).model_dump()
+    com_dict["text"] = comment_id
+    com_dict["edited"] = updated_text
     ref = db.reference(f"Comments/{comment_id}")
     existing = ref.get()
 
     if not existing:
         raise HTTPException(status_code=404, detail="Comment not found")
     
-    ref.update(update_dict)
+    ref.update(com_dict)
     
     updated_data = ref.get()
     return Comment(**updated_data)

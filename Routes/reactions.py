@@ -10,7 +10,7 @@ router = APIRouter(
 
 # -------------------- REACTION METHODS --------------------
 @router.post("", response_model=Reaction)
-def create_reaction(comment_id: str, reaction: Reaction = Body(...)):
+def create_reaction(reaction: Reaction = Body(...)):
     ref = db.reference(f"Reactions")
     new_ref = ref.push()
     new_id = new_ref.key
@@ -18,7 +18,7 @@ def create_reaction(comment_id: str, reaction: Reaction = Body(...)):
     reaction_dict = reaction.model_dump()
     reaction_dict["id"] = new_id
     new_ref.set(reaction_dict)
-    comment_to_reaction(comment_id, new_id)
+    comment_to_reaction(reaction["comment_id"], new_id)
     return reaction_dict
 
 def comment_to_reaction(comment_id: str, reaction_id: str):
@@ -35,20 +35,6 @@ def get_reaction(reaction_id: str):
         raise HTTPException(status_code=404, detail="Reaction not found")
     data["id"] = reaction_id
     return Reaction(**data)
-
-@router.patch("/{reaction_id}", response_model=Reaction)
-def patch_reaction(reaction_id: str, update: Reaction = Body(...)):
-    update_dict = update.model_dump()
-    update_dict["id"] = reaction_id
-    ref = db.reference(f"Reactions/{reaction_id}")
-    existing = ref.get()
-    
-    if not existing:
-        raise HTTPException(status_code=404, detail="Reaction not found")
-    
-    ref.update({k: v for k, v in update_dict.items() if v is not None})
-    updated_data = ref.get()
-    return Reaction(**updated_data)
 
 
 @router.delete("/{reaction_id}")

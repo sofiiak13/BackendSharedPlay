@@ -70,18 +70,18 @@ def get_song(song_id: str):
     return Song(**data)
 
 ## TODO: chnage to move song to pl? what else can we change?
-@router.patch("/{song_id}", response_model=Song)
-def patch_song(song_id: str, update: Song = Body(...)):
-    update_dict = update.model_dump(exclude_unset=True)
-    update_dict["id"] = song_id
-    ref = db.reference(f"Songs/{song_id}")
-    existing = ref.get()
-    if not existing:
-        raise HTTPException(status_code=404, detail="Song not found")
+# @router.patch("/{song_id}", response_model=Song)
+# def patch_song(song_id: str, update: Song = Body(...)):
+#     update_dict = update.model_dump(exclude_unset=True)
+#     update_dict["id"] = song_id
+#     ref = db.reference(f"Songs/{song_id}")
+#     existing = ref.get()
+#     if not existing:
+#         raise HTTPException(status_code=404, detail="Song not found")
     
-    ref.update(update_dict)
-    updated_data = ref.get()
-    return Song(**updated_data)
+#     ref.update(update_dict)
+#     updated_data = ref.get()
+#     return Song(**updated_data)
 
 def remove_song_from(playlist_id: str, song_id: str):
     ref = db.reference(f"PlaylistToSongs/{playlist_id}/{song_id}")

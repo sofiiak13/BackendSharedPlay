@@ -2,10 +2,10 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 class User(BaseModel):
-    id: Optional[str] = None
-    email: Optional[str] = None
-    name: Optional[str] = None
-    password: Optional[str] = None
+    id: Optional[str] = None            #id is optional because it's being set on backend upon creation
+    email: str
+    name: str
+    password: str
     date_joined: Optional[str] = None
     friends: List[str] = None
 
