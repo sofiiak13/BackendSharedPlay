@@ -74,7 +74,6 @@ def remove_comment_map(comment_id: str):
         raise HTTPException(status_code=404, detail="Comment not found in Song to Comments mapping")
     ref.delete()
 
-# add get all comments for(song_id)
 
 @router.get("/{song_id}/comments")
 def get_all_comments_for(song_id: str):
@@ -91,6 +90,17 @@ def get_all_comments_for(song_id: str):
     ordered_comments = build_threaded_comments(all_comments)
 
     return ordered_comments
+
+
+@router.get("/{song_id}/comment/latest")
+def get_most_recent_comment_of(song_id: str):
+    all_comments = get_all_comments_for(song_id)
+
+    if not all_comments:
+        raise HTTPException(status_code=404, detail="No comments found")
+    
+    latest = max(all_comments, key=lambda cnomment: cnomment.date_created)
+    return latest
 
 
 def build_threaded_comments(comments):
