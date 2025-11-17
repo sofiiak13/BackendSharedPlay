@@ -43,11 +43,12 @@ def get_comment(comment_id: str):
 @router.patch("/{comment_id}", response_model=Comment)
 def update_comment(
     comment_id: str, 
-    updated_text: str = Body(...)
+    updated_text: str 
     ):
     com_dict = get_comment(comment_id).model_dump()
-    com_dict["text"] = comment_id
-    com_dict["edited"] = updated_text
+    com_dict["id"] = comment_id
+    com_dict["text"] = updated_text
+    com_dict["edited"] = True
     ref = db.reference(f"Comments/{comment_id}")
     existing = ref.get()
 
