@@ -42,7 +42,7 @@ def get_comment(comment_id: str):
 
 @router.patch("/{comment_id}", response_model=Comment)
 def update_comment(
-    comment_id: str = Query(...), 
+    comment_id: str, 
     updated_text: str = Body(...)
     ):
     com_dict = get_comment(comment_id).model_dump()
