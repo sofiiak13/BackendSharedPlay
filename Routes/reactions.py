@@ -55,7 +55,7 @@ def remove_reaction_map(reaction_id: str):
         raise HTTPException(status_code=404, detail="Reaction not found in Comment to Reactions mapping")
     ref.delete()
 
-
+@router.get("/{comment_id}/reactions")
 def get_all_reactions_for(comment_id: str):
     ref = db.reference(f"CommentToReactions/{comment_id}")
     data = ref.get()
@@ -66,6 +66,5 @@ def get_all_reactions_for(comment_id: str):
         except HTTPException:
             print("Reaction", reaction_id, "not found in mapping. Must have be deleted earlier.")
 
-    print(all_reactions)
 
     return all_reactions

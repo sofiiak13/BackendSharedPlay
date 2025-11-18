@@ -9,5 +9,5 @@ class Comment(BaseModel):
     prev: Optional[str] = None
     song_id: str
     edited: Optional[bool] = False
-    depth: Optional[int] = None
+    depth: Optional[int] = 0
     
