@@ -83,6 +83,10 @@ def get_all_comments_for(song_id: str):
     ref = db.reference(f"SongToComments/{song_id}")
     data = ref.get()
     all_comments = []
+
+    if data == None:
+        return all_comments
+     
     for comment_id in data:
         try: 
             all_comments.append(get_comment(comment_id))
@@ -90,6 +94,7 @@ def get_all_comments_for(song_id: str):
             print("Comment", comment_id, "not found in mapping. Must have be deleted earlier.")
 
     print(all_comments)
+    
     ordered_comments = build_threaded_comments(all_comments)
 
     return ordered_comments
