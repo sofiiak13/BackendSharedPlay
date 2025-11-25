@@ -6,7 +6,7 @@ class Comment(BaseModel):
     text: str
     author_id: str
     author: str
-    date_created: Optional[str]
+    date_created: Optional[str] = None
     prev: Optional[str] = None
     song_id: str
     edited: Optional[bool] = False

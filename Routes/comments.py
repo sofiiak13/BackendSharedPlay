@@ -60,12 +60,16 @@ def update_comment(
     updated_data = ref.get()
     return Comment(**updated_data)
 
+# todo: what if deleted comment has replies? delete the whole thread...
+
 @router.delete("/{comment_id}")
 def delete_comment(comment_id: str):
     ref = db.reference(f"Comments/{comment_id}")
     data = ref.get()
+
     if not data:
         raise HTTPException(status_code=404, detail="Comment not found")
+    
     ref.delete()
     remove_comment_map(comment_id)
     return {"message": f"Comment {comment_id} deleted successfully"}
