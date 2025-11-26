@@ -106,6 +106,10 @@ def get_all_songs_for(playlist_id: str):
     ref = db.reference(f"PlaylistToSongs/{playlist_id}")
     data = ref.get()
     all_songs = []
+
+    if data == None:
+        return all_songs
+    
     for song_id in data:
         try: 
             all_songs.append(get_song(song_id))

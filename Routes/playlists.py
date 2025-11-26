@@ -108,6 +108,10 @@ def get_all_playlists_for(user_id: str):
     ref = db.reference(f"UserToPlaylists/{user_id}")
     data = ref.get()
     all_playlists = []
+    
+    if data == None:
+        return all_playlists
+    
     for playlist_id in data:
         try: 
             all_playlists.append(get_playlist(playlist_id))
