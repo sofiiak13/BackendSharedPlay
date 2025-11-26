@@ -18,7 +18,7 @@ def create_user(user: User = Body(...)):
     new_ref = ref.push()
 
     # Add the ID into the user object
-    user_dict = user.model_dump()   # Pydantic v2
+    user_dict = user.model_dump()  
     user_dict["date_joined"] = datetime.datetime.now().isoformat()
 
     new_ref.set(user_dict)
