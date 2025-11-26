@@ -14,14 +14,10 @@ router = APIRouter(
 def create_user(user: User = Body(...)):
     ref = db.reference("Users")
 
-    # Generate a unique push key using firebase
-    new_ref = ref.push()
-
     # Add the ID into the user object
     user_dict = user.model_dump()  
     user_dict["date_joined"] = datetime.datetime.now().isoformat()
-
-    new_ref.set(user_dict)
+    ref.child(user_dict["id"]).set(user_dict)
     return user_dict
 
 
