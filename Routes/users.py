@@ -16,11 +16,9 @@ def create_user(user: User = Body(...)):
 
     # Generate a unique push key using firebase
     new_ref = ref.push()
-    new_id = new_ref.key
 
     # Add the ID into the user object
     user_dict = user.model_dump()   # Pydantic v2
-    user_dict["id"] = new_id
     user_dict["date_joined"] = datetime.datetime.now().isoformat()
 
     new_ref.set(user_dict)
