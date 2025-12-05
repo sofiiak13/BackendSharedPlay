@@ -55,14 +55,16 @@ def patch_playlist(playlist_id: str, update: PlaylistUpdate = Body(...)):
 
     if not existing:
         raise HTTPException(status_code=404, detail="Playlist not found")
+    
+    print(update_dict)
 
     # Merge editors if provided
-   
     if "new_editor" in update_dict:
         new_editor_id = update_dict["new_editor"]
         if new_editor_id not in existing["editors"]:
             existing["editors"].append(new_editor_id)
             update_dict["editors"] = existing["editors"]
+            print("Combined editors", update_dict["editors"])
             us_to_pl(new_editor_id, playlist_id)            # if there is a new editor create user to pl entry
 
     # Always update id and timestamp server-side
@@ -178,13 +180,7 @@ def add_editor(playlist_id: str, user_id: str):
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist not found")
     
-    
-    editors = set(playlist["editors"])
-    editors.add(user_id)
-    unique_editors = list(editors)
 
-    patch_playlist(playlist_id, PlaylistUpdate(editors=unique_editors))
-    
-    #add u to pl relation
+    patch_playlist(playlist_id, PlaylistUpdate(new_editor=user_id))
 
     return {"message": f"Editor {user_id} added successfully."}
