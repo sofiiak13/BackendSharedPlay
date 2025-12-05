@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Body, HTTPException
 from Modules import Playlist, PlaylistUpdate
+from Modules.Invitation import Invitation
 from firebase_admin import db
-
-import datetime
+import uuid
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter(
     prefix="/playlist",
@@ -20,8 +21,8 @@ def create_playlist(playlist: Playlist = Body(...)):
     playlist_dict["id"] = new_id
     owner = playlist_dict["owner"]
     playlist_dict["editors"] = [owner]
-    playlist_dict["date_created"] = datetime.datetime.now().isoformat()
-    playlist_dict["last_updated"] = datetime.datetime.now().isoformat()
+    playlist_dict["date_created"] = datetime.now().isoformat()
+    playlist_dict["last_updated"] = datetime.now().isoformat()
 
     new_ref.set(playlist_dict)
     us_to_pl(owner, new_id)
@@ -56,14 +57,17 @@ def patch_playlist(playlist_id: str, update: PlaylistUpdate = Body(...)):
         raise HTTPException(status_code=404, detail="Playlist not found")
 
     # Merge editors if provided
-    if "editors" in update_dict and update_dict["editors"]:
-        existing_editors = existing.get("editors", [])
-        new_editors = update_dict["editors"]
-        update_dict["editors"] = list(set(existing_editors + new_editors))
+   
+    if "new_editor" in update_dict:
+        new_editor_id = update_dict["new_editor"]
+        if new_editor_id not in existing["editors"]:
+            existing["editors"].append(new_editor_id)
+            update_dict["editors"] = existing["editors"]
+            us_to_pl(new_editor_id, playlist_id)            # if there is a new editor create user to pl entry
 
     # Always update id and timestamp server-side
     update_dict["id"] = playlist_id
-    update_dict["last_updated"] = datetime.datetime.now().isoformat()
+    update_dict["last_updated"] = datetime.now().isoformat()
 
     # Update only specified fields
     ref.update(update_dict)
@@ -119,3 +123,68 @@ def get_all_playlists_for(user_id: str):
             print("Playlist", playlist_id, "not found in mapping. Must have be deleted earlier.")
 
     return all_playlists
+
+# ---Invitation to playlist methods---
+
+@router.post("/{playlist_id}/invites", response_model=Invitation)
+def create_invite(playlist_id: str, user_id: str):
+    playlist_ref = db.reference(f"Playlists/{playlist_id}")
+    playlist = playlist_ref.get()
+
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+
+    if user_id not in playlist.get("editors", []):
+        raise HTTPException(
+            status_code=410, 
+            detail="This user doesn't have permission to share the playlist."
+        )
+
+    invite_id = str(uuid.uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(days=3)
+
+    invitation = {
+        "id": invite_id,
+        "playlist_id": playlist_id,
+        "created_by": user_id,
+        "expires_at": expires_at.isoformat()
+    }
+        
+    db.reference(f"Invites/{invite_id}").set(invitation)
+
+    return invitation
+
+@router.get("/invites/{invite_id}", response_model=Invitation)
+def validate_invite(invite_id: str):
+    invite_ref = db.reference(f"Invites/{invite_id}")
+    invite = invite_ref.get()
+
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invalid invite")
+
+    invite_expires_at = datetime.fromisoformat(invite["expires_at"])
+
+    if invite_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="Invite expired")
+
+    return invite
+
+
+@router.post("/{playlist_id}/editors")
+def add_editor(playlist_id: str, user_id: str):
+    playlist_ref = db.reference(f"Playlists/{playlist_id}")
+    playlist = playlist_ref.get()
+
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    
+    
+    editors = set(playlist["editors"])
+    editors.add(user_id)
+    unique_editors = list(editors)
+
+    patch_playlist(playlist_id, PlaylistUpdate(editors=unique_editors))
+    
+    #add u to pl relation
+
+    return {"message": f"Editor {user_id} added successfully."}

@@ -12,4 +12,4 @@ class Playlist(BaseModel):
 class PlaylistUpdate(BaseModel):
     name: Optional[str] = None
     owner: Optional[str] = None
-    editors: Optional[List[str]] = None
+    new_editor: Optional[str] = None
