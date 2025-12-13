@@ -11,18 +11,22 @@ load_dotenv()
 
 # Initialize Firebase
 firebase_json = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+database_url = os.getenv("FIREBASE_DATABASE_URL")
 
 if firebase_json:
     # Running on Railway or with env var
     service_account_info = json.loads(firebase_json)
     cred = credentials.Certificate(service_account_info)
-else:
+elif os.path.exists("serviceAccountKey.json"):
     # Running locally
     cred = credentials.Certificate("serviceAccountKey.json")
+else:
+    raise RuntimeError("Firebase credentials not found")
 
-firebase_admin.initialize_app(cred, {
-    "databaseURL": "https://sharedplay-5eb60-default-rtdb.firebaseio.com"
-})
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred, {
+        "databaseURL": database_url
+    })
 
 app = FastAPI()
 
