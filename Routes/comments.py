@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Query, HTTPException, Depends
+from fastapi import APIRouter, Body, HTTPException, Depends
 from Modules import Comment
 from firebase_admin import db
 

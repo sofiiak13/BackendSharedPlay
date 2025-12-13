@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends
 from Modules import Song
 from firebase_admin import db
 

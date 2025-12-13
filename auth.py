@@ -9,7 +9,7 @@ def get_current_user(request: Request) -> str:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid authorization header"
         )
-
+ 
     token = auth_header.split(" ")[1]
 
     try:
