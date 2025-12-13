@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Depends
 from Modules import User, UserUpdate
 from firebase_admin import db
+from auth import get_current_user
 
 import datetime
 
@@ -11,18 +12,19 @@ router = APIRouter(
 
 # -------------------- USER METHODS --------------------
 @router.post("", response_model=User)
-def create_user(user: User = Body(...)):
+def create_user(user: User = Body(...), uid: str = Depends(get_current_user)):
     ref = db.reference("Users")
 
     # Add the ID into the user object
     user_dict = user.model_dump()  
+    user_dict["id"] = uid 
     user_dict["date_joined"] = datetime.datetime.now().isoformat()
     ref.child(user_dict["id"]).set(user_dict)
     return user_dict
 
 
 @router.get("/{user_id}", response_model=User)
-def get_user(user_id: str):
+def get_user(user_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Users/{user_id}")
     data = ref.get()
 
@@ -33,7 +35,7 @@ def get_user(user_id: str):
 
 
 @router.patch("/{user_id}", response_model=User)
-def patch_user(user_id: str, update: UserUpdate = Body(...)):
+def patch_user(user_id: str, update: UserUpdate = Body(...), _: str = Depends(get_current_user)):
     # Only include fields the client actually sent
     update_dict = update.model_dump(exclude_unset=True)
 
@@ -65,7 +67,7 @@ def remove_us_map(user_id: str):
 
 
 @router.delete("/{user_id}")
-def delete_user(user_id: str):
+def delete_user(user_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Users/{user_id}")
 
     # Fetch the user first to see if it exists

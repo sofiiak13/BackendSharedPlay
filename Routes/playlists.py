@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Depends
 from Modules import Playlist, PlaylistUpdate
 from Modules.Invitation import Invitation
 from firebase_admin import db
 import uuid
 from datetime import datetime, timedelta, timezone
+from auth import get_current_user
 
 router = APIRouter(
     prefix="/playlist",
@@ -12,14 +13,15 @@ router = APIRouter(
 
 # -------------------- PLAYLIST METHODS --------------------
 @router.post("", response_model=Playlist)
-def create_playlist(playlist: Playlist = Body(...)):
+def create_playlist(playlist: Playlist = Body(...), uid: str = Depends(get_current_user)):
     ref = db.reference(f"Playlists")
     new_ref = ref.push()
     new_id = new_ref.key
 
     playlist_dict = playlist.model_dump()
     playlist_dict["id"] = new_id
-    owner = playlist_dict["owner"]
+    owner = uid
+    playlist_dict["owner"] = owner
     playlist_dict["editors"] = [owner]
     playlist_dict["date_created"] = datetime.now().isoformat()
     playlist_dict["last_updated"] = datetime.now().isoformat()
@@ -36,7 +38,7 @@ def us_to_pl(user_id: str, playlist_id: str):
 
 
 @router.get("/{playlist_id}", response_model=Playlist)
-def get_playlist(playlist_id: str):
+def get_playlist(playlist_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Playlists/{playlist_id}")
     data = ref.get()
     if not data:
@@ -46,7 +48,7 @@ def get_playlist(playlist_id: str):
 
 
 @router.patch("/{playlist_id}", response_model=Playlist)
-def patch_playlist(playlist_id: str, update: PlaylistUpdate = Body(...)):
+def patch_playlist(playlist_id: str, update: PlaylistUpdate = Body(...), _: str = Depends(get_current_user)):
     # Only include fields that the user actually sent
     update_dict = update.model_dump(exclude_unset=True)
 
@@ -96,7 +98,7 @@ def remove_pl_map(playlist_id: str):
 
 
 @router.delete("/{playlist_id}")
-def delete_playlist(playlist_id: str):
+def delete_playlist(playlist_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Playlists/{playlist_id}")
     data = ref.get()
     if not data:
@@ -110,7 +112,7 @@ def delete_playlist(playlist_id: str):
 
 
 @router.get("/{user_id}/playlists")
-def get_all_playlists_for(user_id: str):
+def get_all_playlists_for(user_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"UserToPlaylists/{user_id}")
     data = ref.get()
     all_playlists = []
@@ -129,7 +131,7 @@ def get_all_playlists_for(user_id: str):
 # ---Invitation to playlist methods---
 
 @router.post("/{playlist_id}/invites", response_model=Invitation)
-def create_invite(playlist_id: str, user_id: str):
+def create_invite(playlist_id: str, user_id: str, _: str = Depends(get_current_user)):
     playlist_ref = db.reference(f"Playlists/{playlist_id}")
     playlist = playlist_ref.get()
 
@@ -157,7 +159,7 @@ def create_invite(playlist_id: str, user_id: str):
     return invitation
 
 @router.get("/invites/{invite_id}", response_model=Invitation)
-def validate_invite(invite_id: str):
+def validate_invite(invite_id: str, _: str = Depends(get_current_user)):
     invite_ref = db.reference(f"Invites/{invite_id}")
     invite = invite_ref.get()
 
@@ -173,7 +175,7 @@ def validate_invite(invite_id: str):
 
 
 @router.post("/{playlist_id}/editors")
-def add_editor(playlist_id: str, user_id: str):
+def add_editor(playlist_id: str, user_id: str, _: str = Depends(get_current_user)):
     playlist_ref = db.reference(f"Playlists/{playlist_id}")
     playlist = playlist_ref.get()
 

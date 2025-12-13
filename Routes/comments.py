@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Body, Query, HTTPException
+from fastapi import APIRouter, Body, Query, HTTPException, Depends
 from Modules import Comment
 from firebase_admin import db
+
+from auth import get_current_user
 
 import datetime
 
@@ -11,7 +13,7 @@ router = APIRouter(
 
 # -------------------- COMMENT METHODS --------------------
 @router.post("", response_model=Comment)
-def create_comment(comment: Comment = Body(...)):
+def create_comment(comment: Comment = Body(...), _: str = Depends(get_current_user)):
     ref = db.reference(f"Comments")
     new_ref = ref.push()
     new_id = new_ref.key
@@ -32,7 +34,7 @@ def song_to_comment(song_id: str, comment_id: str):
 
 
 @router.get("/{comment_id}", response_model=Comment)
-def get_comment(comment_id: str):
+def get_comment(comment_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Comments/{comment_id}")
     data = ref.get()
     if not data:
@@ -43,7 +45,8 @@ def get_comment(comment_id: str):
 @router.patch("/{comment_id}", response_model=Comment)
 def update_comment(
     comment_id: str, 
-    updated_text: str 
+    updated_text: str,
+    _: str = Depends(get_current_user)
     ):
     com_dict = get_comment(comment_id).model_dump()
     com_dict["id"] = comment_id
@@ -60,10 +63,8 @@ def update_comment(
     updated_data = ref.get()
     return Comment(**updated_data)
 
-# todo: what if deleted comment has replies? delete the whole thread...
-
 @router.delete("/{comment_id}")
-def delete_comment(comment_id: str):
+def delete_comment(comment_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Comments/{comment_id}")
     data = ref.get()
 
@@ -83,7 +84,7 @@ def remove_comment_map(comment_id: str):
 
 
 @router.get("/{song_id}/comments")
-def get_all_comments_for(song_id: str):
+def get_all_comments_for(song_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"SongToComments/{song_id}")
     data = ref.get()
     all_comments = []
@@ -105,7 +106,7 @@ def get_all_comments_for(song_id: str):
 
 
 @router.get("/{song_id}/comment/latest")
-def get_most_recent_comment_of(song_id: str):
+def get_most_recent_comment_of(song_id: str, _: str = Depends(get_current_user)):
     all_comments = get_all_comments_for(song_id)
 
     if not all_comments:

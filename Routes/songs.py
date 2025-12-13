@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query, Depends
 from Modules import Song
 from firebase_admin import db
 
@@ -9,6 +9,8 @@ import re
 from dotenv import load_dotenv
 import os
 from googleapiclient.discovery import build
+
+from auth import get_current_user
 
 router = APIRouter(
     prefix="/song",
@@ -23,7 +25,8 @@ load_dotenv()
 def create_song(
     url: str = Query(...),
     playlist_id: str = Query(...),
-    user_id: str = Query(...)
+    user_id: str = Query(...),
+    _: str = Depends(get_current_user)
 ):
     '''
     Inserts new song into playlist using information extracted from url.
@@ -61,7 +64,7 @@ def pl_to_song(playlist_id: str, song_id: str):
     return
 
 @router.get("/{song_id}", response_model=Song)
-def get_song(song_id: str):
+def get_song(song_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Songs/{song_id}")
     data = ref.get()
     if not data:
@@ -91,7 +94,7 @@ def remove_song_from(playlist_id: str, song_id: str):
     ref.delete()
 
 @router.delete("/{song_id}")
-def delete_song(song_id: str):
+def delete_song(song_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Songs/{song_id}")
     data = ref.get()
     if not data:
@@ -102,7 +105,7 @@ def delete_song(song_id: str):
 
 
 @router.get("/{playlist_id}/songs")
-def get_all_songs_for(playlist_id: str):
+def get_all_songs_for(playlist_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"PlaylistToSongs/{playlist_id}")
     data = ref.get()
     all_songs = []

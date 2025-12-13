@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Depends
 from Modules import Reaction
 from firebase_admin import db
+from auth import get_current_user
 
 router = APIRouter(
     prefix="/reaction",
@@ -10,7 +11,7 @@ router = APIRouter(
 
 # -------------------- REACTION METHODS --------------------
 @router.post("", response_model=Reaction)
-def create_reaction(reaction: Reaction = Body(...)):
+def create_reaction(reaction: Reaction = Body(...), _: str = Depends(get_current_user)):
     ref = db.reference(f"Reactions")
     new_ref = ref.push()
     new_id = new_ref.key
@@ -28,7 +29,7 @@ def comment_to_reaction(comment_id: str, reaction_id: str):
 
 
 @router.get("/{reaction_id}", response_model=Reaction)
-def get_reaction(reaction_id: str):
+def get_reaction(reaction_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Reactions/{reaction_id}")
     data = ref.get()
     if not data:
@@ -38,7 +39,7 @@ def get_reaction(reaction_id: str):
 
 
 @router.delete("/{reaction_id}")
-def delete_reaction(reaction_id: str):
+def delete_reaction(reaction_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"Reactions/{reaction_id}")
     data = ref.get()
     if not data:
@@ -56,7 +57,7 @@ def remove_reaction_map(reaction_id: str):
     ref.delete()
 
 @router.get("/{comment_id}/reactions")
-def get_all_reactions_for(comment_id: str):
+def get_all_reactions_for(comment_id: str, _: str = Depends(get_current_user)):
     ref = db.reference(f"CommentToReactions/{comment_id}")
     data = ref.get()
     all_reactions = []
