@@ -13,7 +13,7 @@ It handles authentication, data persistence, and business logic within the app.
 
 ## Tech Stack
 
-- **Language:** Python 3.11
+- **Language:** Python 
 - **Framework:** FastAPI
 - **Database:** Firebase Realtime DB
 - **Authentication:** Firebase Admin SDK
